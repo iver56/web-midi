@@ -1,0 +1,95 @@
+<!doctype html>
+<html>
+    <head>
+        <title>sock test</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+        <!-- add your javascript framework -->
+        <script type="text/javascript" src="http://code.jquery.com/jquery-latest.min.js"></script>
+        
+        <!-- your stylesheets -->
+        <link rel="stylesheet" media="screen" href="css/style.css"/>
+		
+		<script src="http://cdnjs.cloudflare.com/ajax/libs/sockjs-client/0.3.4/sockjs.min.js"></script>
+		<script type="text/javascript">
+			$(function() {
+							
+				var $waitingElement = null;
+				var mappings = {};
+			
+				function midiEvent(e) {
+					var midiData = e.data.split(',');
+					var channel = midiData[1];
+					var value = midiData[2];
+					var width = (500 * value / 127).toString();
+					if (null !== $waitingElement) {
+						if ($waitingElement.data('channel')) {
+							mappings[$waitingElement.data('channel')] = null;
+						}
+						mappings[channel] = { element: $waitingElement };
+						$waitingElement.data('channel', channel);
+						$waitingElement = null;
+					}
+					if (mappings[channel]) {
+						mappings[channel].element.width(width).text(value);
+					}
+				}
+				
+				
+			  // Initialize the socket & handlers
+			  var connectToServer = function() {
+				var warbleSocket = new SockJS('http://localhost:5555/midiServer');
+			 
+				warbleSocket.onopen = function() {
+				  clearInterval(connectRetry);
+				  $('.connect-status')
+					.removeClass('disconnected')
+					.addClass('connected')
+					.text('Connected');
+				};
+			 
+				warbleSocket.onmessage = function(e) {
+				  midiEvent(e);
+				  $('#content').text(e.data);
+				  
+				};
+			 
+				warbleSocket.onclose = function() {
+				  clearInterval(connectRetry);
+				  connectRetry = setInterval(connectToServer, 1000);
+				  $('.connect-status')
+					.removeClass('connected')
+					.addClass('disconnected')
+					.text('Disconnected');
+				};
+			  };
+			 
+			  var connectRetry = setInterval(connectToServer, 1000);
+				
+				$(document).on('click', '.bar', function(e) {
+					$waitingElement = $(e.target);
+					$waitingElement.text('Waiting for controller signal');
+				});
+			  
+			});
+
+			
+		</script>
+		
+    </head>
+    <body>
+		<div class="status">
+			<h2>Status: <span class="connect-status disconnected">Disconnected</span></h2>
+		</div>
+		
+		<div id="content"></div>
+		<div id="bars">
+			<div class="bar" id=bar1>
+			</div>
+			<div class="bar" id=bar2>
+			</div>
+			<div class="bar" id=bar3>
+			</div>
+		</div>
+    </body>
+</html>
